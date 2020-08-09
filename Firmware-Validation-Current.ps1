@@ -12,8 +12,8 @@
 ## Function to create the iDRAC Hostname file for 32 hosts with the Rack name as input
 function getiDRACHostnames 
 {
-    [string]$prefix = Read-Host -Prompt "Enter the hostname prefix for the nodes without quotes Ex: 'dfw-psc3h01'"
-    [string]$suffix = Read-Host -Prompt "Enter the hostname suffix for the nodes without quotes Ex: 'e.bmc.usaa.com' or 'l.bmc.usaa.com''"
+    [string]$prefix = Read-Host -Prompt "Enter the hostname prefix for the nodes without quotes Ex: 'prod-esx'"
+    [string]$suffix = Read-Host -Prompt "Enter the hostname suffix for the nodes without quotes Ex: 'e.psgt.com' or 'l.upsgt.com''"
     [string]$prefix1 = $prefix+"-0"
     [string]$prefix2 = $prefix+"-"
     $i=0
