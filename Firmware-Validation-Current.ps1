@@ -1,7 +1,7 @@
 #=====================================================================================================
 # Description: This script takes the rack name as the prefix and the bmc domain as the prefixt to 
 # generate the iDRAC hostname list. Then runs the racadm commands to list the firmware/software 
-# inventory and extracts specific component firmware and lists it
+# inventory and extracts specific component firmware and lists it. This code applies to 14G Dell Servers
 #=====================================================================================================
 
 #======================================================
