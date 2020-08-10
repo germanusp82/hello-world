@@ -1,7 +1,12 @@
 ## *********************************Start of script**********************************
-##Get theRack Name
 
-[string]$RackName = Read-Host "Enter the Rack Name (Ex: dfw-psc4c02)"
+## Note: The script was written with certain assumptions:
+## 1. The svm host names are prefixed or based on the rack name
+## 2. There are 32 svms in the SIO cluster (can be altered to match different count)
+
+## Get theRack Name
+
+[string]$RackName = Read-Host "Enter the Rack Name (Ex: Prod-rack1)"
 
 ##Get the vCenter fqdn or IP
 
@@ -61,17 +66,15 @@ for ($i=29;$i -le 32;$i++)
 
 
 #Get vCenter Credentials
-$vCenterUname = "administrator@usaa.local"
-$vCenterPwd = ConvertTo-SecureString -String "VMwar3!!" -AsPlainText -Force
-$vCenterCred = new-object -typename System.Management.Automation.PSCredential -argumentlist $vCenterUname,$vCenterPwd
+Write-Host "Enter the vCenter admin credentials:" 
+$vCenterCred = Get-credential
 
 #Connect to the vCenter
 Connect-VIServer -Server $vCName -Credential $vCenterCred
 
 #Get FlexOS SVM Credentials
-$SVMUName = "root"
-$SVMPwd = ConvertTo-SecureString -String "VMwar3123" -AsPlainText -Force
-$SVMCred = new-object -typename System.Management.Automation.PSCredential -argumentlist $SVMUName,$SVMPwd
+Write-Host "Enter the SVM root credentials:" 
+$SVMCred = Get-Credential
 
 #Get the list of Powered On ESXi Hosts:
 
