@@ -1,4 +1,14 @@
-﻿#The add-type routine below this line helps run the REST command without having to use SSL/TSL certificates
+﻿## This PowerShell script is to protect a single VM/list of VMs under a single consistency group. 
+## Naming: The script assigns Consistency Group names and copy names based on the VM Name or the App name
+## the User provides as an input. 
+## Source Journal Sizing: The source journal size will be min 10GB or max 10% of the sum all protected VMs' vmdks.
+## Target Jorunal Sizing: The target journal size will be min 10GB and max 50GB of the sum all protected VMs' vmdks.
+## Timing: The script takes approximately 2 minutes to protect each VM in the list. 
+## This delay is due to waits introduced in the script and how long it takes for the REST calls to get a response
+## AUTHOR: Tom Pinto
+## Version 1.0 - Last Modified 8/10/2020
+
+## The add-type routine below this line helps run the REST command without having to use SSL/TSL certificates
 add-type @"
     using System.Net;
     using System.Security.Cryptography.X509Certificates;
@@ -31,6 +41,7 @@ Import-module VMware.ImageBuilder
 Import-module VMware.VimAutomation.License
 
 ## Get the VM name or Application name and derive the Consistency Group name, Source Copy name and Target Copy name
+
 $VMNameAppName = Read-Host ("If protecting a single VM, type VM Name or if protecting multiple VMs type the application/group name")
 $CGName = $VMNameAppName + "_CG"
 $TgtCopyName = $VMNameAppName + "_Tgt"
@@ -230,6 +241,8 @@ ConvertTo-Json -Depth 15 | ConvertFrom-Json | Select-Object -Expand clustersSett
 Select-Object -ExpandProperty ampsSettings | Select-Object -ExpandProperty managedArrays | Select-Object -ExpandProperty resourcePools | `
 Where-Object -Property name -Match $TgtJrnlDSName | Select-Object -ExpandProperty resourcePoolUID | Select-Object -ExpandProperty arrayUid | `
 Select-Object -ExpandProperty id | Format-Table -AutoSize | Out-String -Stream
+
+## Generating the JSON payload to protect a single VM using a consistency group. All the values derived above wil be substitued in the JSON payload below
 
 $JsonReplicatePayload='{
      "cgName": "'+$CGName+'",
@@ -441,13 +454,20 @@ $JsonReplicatePayload='{
      "JsonSubType":  "ReplicateVmsParam"
 }'
 
+## The below REST POST call be used to create the Consistency Group. The response will be a new Consistey Group ID
+
 $RESTurl= "https://$SrcRPClusterFQDN/fapi/rest/5_1/groups/virtual_machines/replicate"
 
 $NewGroupID = Invoke-RestMethod -Uri $RESTurl -Body $JsonReplicatePayload -ContentType application/json `
 -Headers @{"AUTHORIZATION"="Basic YWRtaW46YWRtaW4="}  -Method Post | Select-Object -ExpandProperty id |Format-Table -AutoSize | Out-String -Stream
 
+## The below REST GET call is used to retrieve the Group Name with the new Group ID generated in the above step
+
 $GroupNameString=Invoke-RestMethod -Uri https://$SrcRPClusterFQDN/fapi/rest/5_1/groups/$NewGroupID/name -Headers @{"AUTHORIZATION"="Basic YWRtaW46YWRtaW4="} -Method Get | ConvertTo-Json | ConvertFrom-Json
 $GroupName=$GroupNameString | Select-Object -ExpandProperty string
+
+## Output: All the details of the newly created Consistency Group will be written to the screen
+
 Write-Host "****************** Results of CG Creation ******************"
 Write-Host "New CG ID: $NewGroupID"
 Write-Host "New CG Name: $GroupName"
@@ -514,6 +534,8 @@ if ($VMsList.Count -ge 2)
         ConvertTo-Json -Depth 12 | ConvertFrom-Json | Select-Object -Expand virtualCentersConfiguration | Select-Object -ExpandProperty datacentersConfiguration | Select-Object -ExpandProperty datastoresConfiguration | `
         Where-Object -Property name -Match $AddnlTgtDatastoretName | Select-Object -ExpandProperty datastoreUID | Select-Object -ExpandProperty uuid | Format-Table -AutoSize | Out-String -Stream
 
+        ## The below payload will be used to protect additiona VMs in the initial list after the above values are substituted for each VM
+
         $JsonPayloadAddVMs='{
                             "innerSet": [
                                 {
@@ -574,6 +596,8 @@ if ($VMsList.Count -ge 2)
                             ]
                         }'
 
+        ## REST URL and REST POST call to protect additional VMs that were provided in the intial list
+        
         $AddVMRestURL= "https://$SrcRPClusterFQDN/fapi/rest/5_1/groups/$NewGroupID/virtual_machines"
 
         Invoke-RestMethod -Method Post -Uri $AddVMRestURL -Body $JsonPayloadAddVMs -ContentType application/json -Headers @{"AUTHORIZATION"="Basic YWRtaW46YWRtaW4="}
@@ -600,6 +624,9 @@ Else
     Write-Host "Additional VMs have been protected successfully. Please wait 2 mins to see the list of hosts protected under CG ID $NewGroupID ...."
     Start-Sleep -s 120
     }
+
+
+## REST GET call to list the additional VMs that were protected in the CG
 
 $AddnlVMsProtected = Invoke-RestMethod -Uri https://$SrcRPClusterFQDN/fapi/rest/5_1/groups/$NewGroupID/information -Headers @{"AUTHORIZATION"="Basic YWRtaW46YWRtaW4="} -Method Get | `
 ConvertTo-Json -Depth 8 | ConvertFrom-Json | Select-Object -Expand groupCopiesInformation | Where-Object -Property role -Match "ACTIVE" | Select-Object -ExpandProperty vmsInformation | `
